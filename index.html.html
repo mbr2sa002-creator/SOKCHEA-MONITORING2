@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RC Monitoring App</title>
+</head>
+<body>
+<div id="rc-app"></div>
+
+<script id="rc-data" type="application/json">{"communes": [], "villages": [], "volunteers": [], "children": [], "topics": ["3. ថ្ងៃកំណើត", "11. បណ្តុះបណ្តាលអប់រំសុខភាព", "12. បណ្តុះបណ្តាលអាន/សរសេរ", "19. បណ្តុះបណ្តាលសិទ្ធិកុមារ", "20. ក្លឹបកុមារ", "74. បណ្តុះបណ្តាលគ្រប់គ្រងហានិភ័យគ្រោះមហន្តរាយ", "80.បណ្តុះបណ្តាលអនាម័យ", "តាមដានវត្តមានកុមារប្រចាំខែ"]}</script>
+
+<style>
+  :root{
+    --ink:#26312c;
+    --ink-soft:#5c685f;
+    --paper:#f6f2e8;
+    --paper-raised:#ffffff;
+    --line:#e3dccb;
+    --forest:#2f5d4f;
+    --forest-deep:#1f4137;
+    --rice:#e8a23a;
+    --clay:#bd5a35;
+    --clay-soft:#f3e3d8;
+    --moss:#7c9473;
+    --ok-bg:#e7efe2;
+    --ok-fg:#3c6b34;
+    --warn-bg:#fcecd9;
+    --warn-fg:#9a5a13;
+    --bad-bg:#fbe2dc;
+    --bad-fg:#a83f23;
+    --radius:14px;
+    --radius-sm:9px;
+    --shadow:0 1px 2px rgba(38,49,44,.06), 0 8px 24px -12px rgba(38,49,44,.18);
+  }
+
+  #rc-app, #rc-app *{box-sizing:border-box;}
+  #rc-app{
+    font-family:'Noto Sans Khmer','Noto Sans','Inter',system-ui,sans-serif;
+    color:var(--ink);
+    background:var(--paper);
+    background-image:
+      radial-gradient(circle at 10% 0%, rgba(124,148,115,.10), transparent 45%),
+      radial-gradient(circle at 95% 8%, rgba(232,162,58,.10), transparent 40%);
+    min-height:100%;
+    width:100%;
+    padding-bottom:48px;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .rc-shell{max-width:720px;margin:0 auto;padding:18px 16px 0;}
+
+  /* Header */
+  .rc-header{
+    display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+    padding:4px 2px 18px;
+  }
+  .rc-brand{display:flex;align-items:center;gap:11px;}
+  .rc-mark{
+    width:42px;height:42px;border-radius:11px;flex:none;
+    background:linear-gradient(155deg,var(--forest),var(--forest-deep));
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:var(--shadow);
+  }
+  .rc-mark svg{width:22px;height:22px;}
+  .rc-title{font-size:16.5px;font-weight:700;line-height:1.35;letter-spacing:.1px;}
+  .rc-subtitle{font-size:12.5px;color:var(--ink-soft);margin-top:2px;}
+  .rc-header-actions{display:flex;align-items:center;gap:8px;flex:none;}
+  .rc-admin-btn{
+    flex:none;border:1px solid var(--line);background:var(--paper-raised);
+    color:var(--ink-soft);font-size:12px;padding:8px 12px;border-radius:999px;
+    cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit;
+    transition:.15s;white-space:nowrap;
+  }
+  .rc-admin-btn:hover{border-color:var(--forest);color:var(--forest-deep);}
+
+  /* Trail / breadcrumb */
+  .rc-trail{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:16px;}
+  .rc-trail-pill{
+    display:flex;align-items:center;gap:6px;font-size:12.5px;
+    background:var(--paper-raised);border:1px solid var(--line);
+    padding:6px 12px 6px 9px;border-radius:999px;color:var(--ink-soft);
+    cursor:pointer;font-family:inherit;transition:.15s;max-width:200px;
+  }
+  .rc-trail-pill.is-active{background:var(--forest);border-color:var(--forest);color:#fff;font-weight:600;cursor:default;}
+  .rc-trail-pill.is-done{color:var(--forest-deep);}
+  .rc-trail-pill.is-done:hover{background:var(--ok-bg);}
+  .rc-trail-pill .rc-trail-num{
+    width:16px;height:16px;border-radius:50%;background:var(--line);color:var(--ink-soft);
+    font-size:10px;display:flex;align-items:center;justify-content:center;flex:none;
+  }
+  .rc-trail-pill.is-active .rc-trail-num{background:rgba(255,255,255,.25);color:#fff;}
+  .rc-trail-pill.is-done .rc-trail-num{background:var(--ok-fg);color:#fff;}
+  .rc-trail-pill span.lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .rc-trail-arrow{color:var(--line);font-size:11px;}
+
+  /* Cards / sections */
+  .rc-card{
+    background:var(--paper-raised);border:1px solid var(--line);
+    border-radius:var(--radius);box-shadow:var(--shadow);
+    padding:18px;margin-bottom:14px;
+  }
+  .rc-section-title{font-size:14.5px;font-weight:700;margin-bottom:3px;}
+  .rc-section-sub{font-size:12.5px;color:var(--ink-soft);margin-bottom:14px;}
+
+  .rc-search{
+    width:100%;border:1px solid var(--line);background:var(--paper);
+    border-radius:var(--radius-sm);padding:11px 14px;font-size:14px;
+    font-family:inherit;color:var(--ink);margin-bottom:12px;
+  }
+  .rc-search:focus{outline:none;border-color:var(--forest);background:#fff;}
+
+  .rc-commune-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+  .rc-chip{
+    border:1px solid var(--line);background:var(--paper);color:var(--ink-soft);
+    font-size:12px;padding:6px 12px;border-radius:999px;cursor:pointer;
+    font-family:inherit;transition:.15s;
+  }
+  .rc-chip.is-on{background:var(--forest);border-color:var(--forest);color:#fff;font-weight:600;}
+
+  .rc-list{display:flex;flex-direction:column;gap:8px;max-height:52vh;overflow-y:auto;padding-right:2px;}
+  .rc-pick-row{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    border:1px solid var(--line);border-radius:var(--radius-sm);
+    padding:13px 14px;cursor:pointer;background:var(--paper);transition:.15s;
+    text-align:left;font-family:inherit;width:100%;
+  }
+  .rc-pick-row:hover{border-color:var(--forest);background:#fff;}
+  .rc-pick-main{display:flex;flex-direction:column;gap:1px;min-width:0;}
+  .rc-pick-name{font-size:14.5px;font-weight:600;color:var(--ink);}
+  .rc-pick-meta{font-size:11.5px;color:var(--ink-soft);}
+  .rc-pick-arrow{color:var(--ink-soft);font-size:16px;flex:none;}
+  .rc-count-badge{
+    flex:none;font-size:11px;font-weight:700;color:var(--forest-deep);
+    background:var(--ok-bg);border-radius:999px;padding:3px 9px;
+  }
+
+  .rc-empty{padding:30px 10px;text-align:center;color:var(--ink-soft);font-size:13px;}
+
+  /* Session (date + topics) */
+  .rc-field{margin-bottom:15px;}
+  .rc-field label{display:block;font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:6px;}
+  .rc-field input[type=date], .rc-field select, .rc-field textarea, .rc-field input[type=text], .rc-field input[type=password]{
+    width:100%;border:1px solid var(--line);border-radius:var(--radius-sm);
+    padding:11px 13px;font-size:14px;font-family:inherit;color:var(--ink);background:var(--paper);
+  }
+  .rc-field textarea{resize:vertical;min-height:64px;}
+  .rc-field input:focus, .rc-field select:focus, .rc-field textarea:focus{outline:none;border-color:var(--forest);background:#fff;}
+  .rc-topic-grid{display:flex;flex-direction:column;gap:7px;}
+  .rc-topic-opt{
+    border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px 12px;
+    font-size:13px;cursor:pointer;background:var(--paper);transition:.12s;
+    display:flex;align-items:center;gap:9px;
+  }
+  .rc-topic-opt.is-on{border-color:var(--forest);background:var(--ok-bg);font-weight:600;color:var(--forest-deep);}
+  .rc-topic-check{
+    width:17px;height:17px;border-radius:5px;border:1.5px solid var(--line);flex:none;
+    display:flex;align-items:center;justify-content:center;background:#fff;
+  }
+  .rc-topic-opt.is-on .rc-topic-check{background:var(--forest);border-color:var(--forest);color:#fff;}
+  .rc-continue-btn{
+    width:100%;border:none;background:var(--forest);color:#fff;border-radius:999px;
+    padding:13px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;
+    transition:.15s;margin-top:4px;
+  }
+  .rc-continue-btn:hover{background:var(--forest-deep);}
+  .rc-continue-btn:disabled{opacity:.5;cursor:not-allowed;}
+  .rc-session-summary{
+    display:flex;flex-wrap:wrap;gap:7px;background:var(--ok-bg);color:var(--forest-deep);
+    border-radius:var(--radius-sm);padding:10px 12px;font-size:12px;margin-bottom:14px;
+  }
+
+  /* Children list */
+  .rc-sort-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px;}
+  .rc-sort-row select{
+    border:1px solid var(--line);border-radius:999px;background:var(--paper-raised);
+    padding:7px 10px;font-size:12px;font-family:inherit;color:var(--ink-soft);
+  }
+  .rc-child-row{
+    display:flex;align-items:center;gap:12px;border:1px solid var(--line);
+    border-radius:var(--radius-sm);padding:11px;background:var(--paper);margin-bottom:8px;
+    cursor:pointer;transition:.12s;text-align:left;width:100%;font-family:inherit;
+  }
+  .rc-child-row:hover{border-color:var(--forest);background:#fff;}
+  .rc-child-row.has-issue{border-color:var(--clay);background:var(--clay-soft);}
+  .rc-avatar{
+    width:46px;height:46px;border-radius:10px;flex:none;object-fit:cover;
+    background:linear-gradient(155deg,var(--moss),var(--forest));
+    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;
+  }
+  .rc-child-info{flex:1;min-width:0;}
+  .rc-child-name{font-size:14px;font-weight:600;display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+  .rc-child-meta{font-size:11.5px;color:var(--ink-soft);margin-top:1px;}
+  .rc-tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;letter-spacing:.2px;white-space:nowrap;}
+  .rc-tag.ok{background:var(--ok-bg);color:var(--ok-fg);}
+  .rc-tag.warn{background:var(--warn-bg);color:var(--warn-fg);}
+  .rc-tag.bad{background:var(--bad-bg);color:var(--bad-fg);}
+  .rc-last{font-size:11px;color:var(--ink-soft);margin-top:3px;}
+  .rc-pick-arrow2{color:var(--ink-soft);font-size:16px;flex:none;}
+
+  .rc-sticky-submit{
+    position:sticky;bottom:10px;margin-top:14px;background:var(--paper-raised);
+    border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);
+    padding:13px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  }
+  .rc-sticky-text{font-size:12px;color:var(--ink-soft);}
+  .rc-sticky-text b{color:var(--ink);}
+  .rc-submit-btn{
+    border:none;background:var(--forest);color:#fff;border-radius:999px;
+    padding:12px 22px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;
+    transition:.15s;white-space:nowrap;
+  }
+  .rc-submit-btn:hover{background:var(--forest-deep);}
+  .rc-submit-btn:disabled{opacity:.55;cursor:not-allowed;}
+
+  /* Modal */
+  .rc-overlay{
+    position:fixed;inset:0;background:rgba(31,38,33,.46);backdrop-filter:blur(1px);
+    display:flex;align-items:flex-end;justify-content:center;z-index:1000;
+    animation:rcFade .15s ease;
+  }
+  @keyframes rcFade{from{opacity:0}to{opacity:1}}
+  @media(min-width:640px){.rc-overlay{align-items:center;}}
+  .rc-modal{
+    background:var(--paper-raised);width:100%;max-width:480px;max-height:92vh;overflow-y:auto;
+    border-radius:18px 18px 0 0;padding:22px 20px 24px;box-shadow:0 -8px 30px rgba(0,0,0,.2);
+    animation:rcUp .2s ease;
+  }
+  @media(min-width:640px){.rc-modal{border-radius:18px;}}
+  @keyframes rcUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .rc-modal-head{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+  .rc-modal-avatar{width:48px;height:48px;border-radius:11px;}
+  .rc-modal-h{font-size:15.5px;font-weight:700;}
+  .rc-modal-sub{font-size:12px;color:var(--ink-soft);}
+
+  .rc-criterion{border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px;margin-bottom:10px;background:var(--paper);}
+  .rc-criterion.is-no{border-color:var(--clay);background:var(--clay-soft);}
+  .rc-criterion-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:0;}
+  .rc-criterion-label{font-size:13.5px;font-weight:700;}
+  .rc-toggle-pair{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;flex:none;}
+  .rc-toggle-btn{
+    border:none;background:var(--paper-raised);color:var(--ink-soft);font-size:12px;font-weight:700;
+    padding:7px 14px;cursor:pointer;font-family:inherit;transition:.12s;
+  }
+  .rc-toggle-btn.yes.is-on{background:var(--ok-fg);color:#fff;}
+  .rc-toggle-btn.no.is-on{background:var(--clay);color:#fff;}
+  .rc-criterion-reason{margin-top:9px;}
+  .rc-criterion-reason textarea{
+    width:100%;border:1px solid var(--clay);border-radius:8px;padding:9px 10px;font-size:13px;
+    font-family:inherit;background:#fff;resize:vertical;min-height:46px;
+  }
+  .rc-criterion-reason textarea:focus{outline:none;}
+  .rc-criterion-reason label{font-size:11px;color:var(--clay);font-weight:700;display:block;margin-bottom:4px;}
+
+  .rc-modal-actions{display:flex;gap:9px;margin-top:14px;}
+  .rc-btn-secondary{
+    flex:1;border:1px solid var(--line);background:var(--paper-raised);color:var(--ink-soft);
+    padding:12px;border-radius:999px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;
+  }
+  .rc-btn-primary{
+    flex:1.4;border:none;background:var(--forest);color:#fff;
+    padding:12px;border-radius:999px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;
+    transition:.15s;
+  }
+  .rc-btn-primary:hover{background:var(--forest-deep);}
+  .rc-btn-primary:disabled{opacity:.55;cursor:not-allowed;}
+
+  .rc-toast{
+    position:fixed;left:50%;bottom:22px;transform:translateX(-50%);
+    background:var(--forest-deep);color:#fff;padding:11px 20px;border-radius:999px;
+    font-size:13px;font-weight:600;box-shadow:var(--shadow);z-index:1200;text-align:center;
+    animation:rcToast .25s ease;max-width:88vw;
+  }
+  .rc-toast.is-error{background:var(--bad-fg);}
+  @keyframes rcToast{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+
+  .rc-loading{display:flex;align-items:center;gap:8px;color:var(--ink-soft);font-size:12.5px;padding:6px 2px 14px;}
+  .rc-spin{width:13px;height:13px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--forest);animation:rcSpin .7s linear infinite;}
+  @keyframes rcSpin{to{transform:rotate(360deg)}}
+
+  .rc-footer-note{text-align:center;font-size:11px;color:var(--ink-soft);opacity:.75;padding:18px 10px 0;}
+
+  /* Admin view */
+  .rc-admin-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap;}
+  .rc-table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius-sm);}
+  table.rc-table{width:100%;border-collapse:collapse;font-size:12px;background:var(--paper-raised);}
+  table.rc-table th{
+    text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;
+    color:var(--ink-soft);background:var(--paper);padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap;
+  }
+  table.rc-table td{padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap;}
+  table.rc-table tr:last-child td{border-bottom:none;}
+  .rc-export-btn{
+    background:var(--forest);color:#fff;border:none;border-radius:999px;padding:9px 16px;
+    font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;
+  }
+  .rc-stat-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  .rc-stat{background:var(--paper-raised);border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px 16px;flex:1;min-width:110px;}
+  .rc-stat b{display:block;font-size:20px;color:var(--forest-deep);}
+  .rc-stat span{font-size:11px;color:var(--ink-soft);}
+
+  /* Login */
+  .rc-login-wrap{min-height:88vh;display:flex;align-items:center;justify-content:center;padding:24px 16px;}
+  .rc-login-card{
+    width:100%;max-width:380px;background:var(--paper-raised);border:1px solid var(--line);
+    border-radius:18px;box-shadow:var(--shadow);padding:30px 26px 26px;text-align:center;
+  }
+  .rc-login-mark{
+    width:54px;height:54px;border-radius:14px;margin:0 auto 14px;
+    background:linear-gradient(155deg,var(--forest),var(--forest-deep));
+    display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow);
+  }
+  .rc-login-title{font-size:16px;font-weight:700;margin-bottom:3px;}
+  .rc-login-sub{font-size:12.5px;color:var(--ink-soft);margin-bottom:22px;}
+  .rc-login-card .rc-field{text-align:left;}
+  .rc-login-error{
+    background:var(--bad-bg);color:var(--bad-fg);font-size:12px;border-radius:8px;
+    padding:9px 11px;margin-bottom:14px;text-align:left;font-weight:600;
+  }
+  .rc-login-btn{
+    width:100%;border:none;background:var(--forest);color:#fff;border-radius:999px;
+    padding:13px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px;
+  }
+  .rc-login-btn:hover{background:var(--forest-deep);}
+  .rc-login-note{font-size:10.5px;color:var(--ink-soft);opacity:.7;margin-top:16px;}
+  .rc-logout-btn{
+    border:1px solid var(--line);background:var(--paper-raised);color:var(--ink-soft);
+    font-size:11.5px;padding:7px 11px;border-radius:999px;cursor:pointer;font-family:inherit;
+  }
+  .rc-logout-btn:hover{border-color:var(--clay);color:var(--clay);}
+</style>
+
+<script>
+(function(){
+  "use strict";
+  var RAW = document.getElementById('rc-data').textContent;
+  var DB = JSON.parse(RAW);
+
+  // ---------------------------------------------------------------------
+  // Access control. This is a lightweight shared password gate meant to
+  // keep casual/outside visitors off the dashboard -- it is NOT secure
+  // storage (the password lives in this page's source). Edit ACCOUNTS to
+  // change the login(s).
+  // ---------------------------------------------------------------------
+  var ACCOUNTS = [
+    { user: 'volunteer', pass: 'mb2026' },
+    { user: 'admin', pass: 'admin2026' }
+  ];
+
+  var CRITERIA = [
+    { key:'attendance',    label:'វត្តមាន' },
+    { key:'health',        label:'សុខភាព' },
+    { key:'education',     label:'ការសិក្សា' },
+    { key:'protection',    label:'ការការពារ' },
+    { key:'participation', label:'ការចូលរួម' }
+  ];
+
+  // ---------------------------------------------------------------------
+  // Live data source (Google Apps Script Web App, deployed from the
+  // Google Sheet). doGet on this URL returns
+  // {communes, villages, volunteers, children}. Replace if you redeploy.
+  // ---------------------------------------------------------------------
+  var SHEET_DATA_URL = 'https://script.google.com/macros/s/AKfycbxGfILq0wakOSSki0IG36a9RxxCL7Wysd3mkn8pz2qeRPw5q_SFMv99RF2KtGchh4moqQ/exec';
+  var DATA_CACHE_KEY = 'rc_data_cache_v1';
+
+  var villageByCode = {};
+  var communeByCode = {};
+  var volunteerByCode = {};
+  var childrenByVolunteer = {};
+  var volunteersByVillage = {};
+
+  function rebuildIndexes(){
+    villageByCode = {}; DB.villages.forEach(function(v){ villageByCode[v.code]=v; });
+    communeByCode = {}; DB.communes.forEach(function(c){ communeByCode[c.code]=c; });
+    volunteerByCode = {}; DB.volunteers.forEach(function(v){ volunteerByCode[v.code]=v; });
+
+    childrenByVolunteer = {};
+    DB.children.forEach(function(c){
+      (childrenByVolunteer[c.volunteerCode] = childrenByVolunteer[c.volunteerCode] || []).push(c);
+    });
+    volunteersByVillage = {};
+    DB.volunteers.forEach(function(v){
+      (volunteersByVillage[v.villageCode] = volunteersByVillage[v.villageCode] || []).push(v);
+    });
+  }
+  rebuildIndexes();
+
+  // ---------- live data loading ----------
+  function applySheetData(fresh){
+    DB.communes = fresh.communes || [];
+    DB.villages = fresh.villages || [];
+    DB.volunteers = fresh.volunteers || [];
+    DB.children = fresh.children || [];
+    if (fresh.topics && fresh.topics.length) DB.topics = fresh.topics;
+    rebuildIndexes();
+  }
+
+  function cacheData(){
+    try{
+      localStorage.setItem(DATA_CACHE_KEY, JSON.stringify({
+        communes: DB.communes, villages: DB.villages,
+        volunteers: DB.volunteers, children: DB.children,
+        topics: DB.topics, savedAt: new Date().toISOString()
+      }));
+    }catch(e){}
+  }
+
+  function loadCachedData(){
+    try{
+      var v = localStorage.getItem(DATA_CACHE_KEY);
+      if(v) return JSON.parse(v);
+    }catch(e){}
+    return null;
+  }
+
+  function loadDataFromSheet(opts){
+    opts = opts || {};
+    state.dataLoading = true;
+    state.dataError = false;
+    if (state.authChecked) render();
+
+    return fetch(SHEET_DATA_URL)
+      .then(function(res){ return res.json(); })
+      .then(function(json){
+        if (json && json.error) throw new Error(json.error);
+        applySheetData(json);
+        cacheData();
+        state.dataLoading = false;
+        state.dataError = false;
+        loadPref();
+        if (opts.silent !== true) showToast('ទាញយកទិន្នន័យជោគជ័យ');
+        render();
+      })
+      .catch(function(err){
+        state.dataLoading = false;
+        state.dataError = true;
+        // fall back to last good cache if this is the first load and DB is empty
+        if (!DB.children.length) {
+          var cached = loadCachedData();
+          if (cached) { applySheetData(cached); loadPref(); }
+        }
+        showToast('មិនអាចទាញយកទិន្នន័យពី Google Sheet បានទេ សូមពិនិត្យអ៊ីនធឺណិត', true);
+        render();
+      });
+  }
+
+  // ---------- state ----------
+  var state = {
+    authed: false,
+    authChecked: false,
+    loginError: '',
+    view: 'village',      // village | volunteer | session | children | admin
+    villageCode: null,
+    volunteerCode: null,
+    villageSearch: '',
+    communeFilter: 'all',
+    sortMode: 'issues',
+    sessionDate: todayISO(),
+    sessionTopics: [],
+    sessionId: null,
+    childStatus: {},       // childCode -> {attendance:{val,reason}, ...}
+    childSaved: {},        // childCode -> true once individually auto-saved
+    lastMap: {},            // childCode -> latest past submission
+    modalChild: null,
+    toast: null,
+    toastError: false,
+    busy: false,
+    savingChild: null,
+    dataLoading: true,
+    dataError: false
+  };
+
+  function defaultStatus(){
+    var s = {};
+    CRITERIA.forEach(function(c){ s[c.key] = { val:'Yes', reason:'' }; });
+    return s;
+  }
+  function sanitizeKey(s){ return String(s).replace(/[\/\\\s'"]/g,'_').slice(0,180); }
+  function todayISO(){
+    var d = new Date();
+    var tz = new Date(d.getTime() - d.getTimezoneOffset()*60000);
+    return tz.toISOString().slice(0,10);
+  }
+  function fmtDate(iso){
+    if(!iso) return '';
+    var p = iso.split('-'); if(p.length<3) return iso;
+    return p[2] + '/' + p[1] + '/' + p[0];
+  }
+  function escapeHtml(s){
+    return String(s==null?'':s).replace(/[&<>"']/g, function(m){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+    });
+  }
+  function initials(name){
+    if(!name) return '?';
+    var parts = String(name).trim().split(/\s+/);
+    return (parts[0]||'').slice(0,1);
+  }
+  function showToast(msg, isErr){
+    state.toast = msg; state.toastError = !!isErr; render();
+    setTimeout(function(){ state.toast=null; render(); }, isErr ? 3200 : 2200);
+  }
+
+  // ---------- auth persistence (per-device, not shared) ----------
+  // ---------- Google Sheets API ----------
+  var SHEET_URL = 'https://script.google.com/macros/s/AKfycbxGfILq0wakOSSki0IG36a9RxxCL7Wysd3mkn8pz2qeRPw5q_SFMv99RF2KtGchh4moqQ/exec';
+
+  function postToSheet(payload) {
+    return fetch(SHEET_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  }
+
+  // ---------- auth (localStorage - device only) ----------
+  function checkAuth(){
+    try {
+      var v = localStorage.getItem('rc_auth_session');
+      if(v === 'ok'){ state.authed = true; }
+    } catch(e){}
+    state.authChecked = true;
+    // load cached data immediately (if any) so the UI isn't empty while we fetch
+    var cached = loadCachedData();
+    if (cached) applySheetData(cached);
+    if(state.authed) loadPref(); else render();
+    loadDataFromSheet({ silent: true });
+  }
+  function tryLogin(user, pass){
+    var ok = ACCOUNTS.some(function(a){ return a.user===user && a.pass===pass; });
+    if(ok){
+      state.authed = true; state.loginError='';
+      try{ localStorage.setItem('rc_auth_session','ok'); }catch(e){}
+      loadPref();
+    } else {
+      state.loginError = 'ឈ្មោះអ្នកប្រើ ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវ';
+      render();
+    }
+  }
+  function logout(){
+    state.authed = false;
+    try{ localStorage.removeItem('rc_auth_session'); }catch(e){}
+    render();
+  }
+
+  // ---------- persisted local preference (per-device) ----------
+  function savePref(){
+    try{
+      localStorage.setItem('pref_last_selection', JSON.stringify({
+        villageCode: state.villageCode, volunteerCode: state.volunteerCode
+      }));
+    }catch(e){}
+  }
+  function loadPref(){
+    try{
+      var v = localStorage.getItem('pref_last_selection');
+      if(v){
+        var p = JSON.parse(v);
+        if(p.villageCode && villageByCode[p.villageCode]) state.villageCode = p.villageCode;
+        if(p.volunteerCode && volunteerByCode[p.volunteerCode] && volunteerByCode[p.volunteerCode].villageCode === state.villageCode){
+          state.volunteerCode = p.volunteerCode;
+        }
+      }
+    }catch(e){}
+    render();
+  }
+
+  // ---------- load last visit for volunteer (localStorage) ----------
+  function loadLastForVolunteer(volCode){
+    try{
+      var v = localStorage.getItem('lastmap_'+volCode);
+      if(v){
+        var map = JSON.parse(v);
+        Object.keys(map).forEach(function(code){ state.lastMap[code] = map[code]; });
+      }
+    }catch(e){}
+    render();
+  }
+
+  function buildRecord(c, vol){
+    var st = state.childStatus[c.code] || defaultStatus();
+    return {
+      sessionId: state.sessionId,
+      date: state.sessionDate,
+      topics: state.sessionTopics,
+      childCode: c.code, childName: c.name,
+      villageCode: c.villageCode, villageName: (villageByCode[c.villageCode]||{}).name || '',
+      volunteerCode: vol.code, volunteerName: vol.name,
+      attendance: st.attendance.val, attendanceReason: st.attendance.reason,
+      health: st.health.val, healthReason: st.health.reason,
+      education: st.education.val, educationReason: st.education.reason,
+      protection: st.protection.val, protectionReason: st.protection.reason,
+      participation: st.participation.val, participationReason: st.participation.reason,
+      submittedAt: new Date().toISOString()
+    };
+  }
+
+  // ---------- auto-save single child (localStorage only, fast) ----------
+  function autoSaveChild(code){
+    var vol = volunteerByCode[state.volunteerCode];
+    var c = DB.children.filter(function(x){ return x.code===code; })[0];
+    if(!c || !vol) return;
+    var record = buildRecord(c, vol);
+    state.lastMap[code] = record;
+    state.childSaved[code] = true;
+    // save to localStorage as backup
+    try{
+      var key = 'draft_' + vol.code + '_' + state.sessionId;
+      var existing = JSON.parse(localStorage.getItem(key)||'[]');
+      var idx = existing.findIndex(function(r){ return r.childCode === code; });
+      if(idx >= 0) existing[idx] = record; else existing.push(record);
+      localStorage.setItem(key, JSON.stringify(existing));
+    }catch(e){}
+    render();
+  }
+
+  // ---------- finish visit: send all to Google Sheets ----------
+  function finishVisit(){
+    var vol = volunteerByCode[state.volunteerCode];
+    var kids = childrenByVolunteer[vol.code] || [];
+
+    // validate No answers have reasons
+    for(var i=0;i<kids.length;i++){
+      var st = state.childStatus[kids[i].code];
+      if(!st) continue;
+      for(var j=0;j<CRITERIA.length;j++){
+        var f = st[CRITERIA[j].key];
+        if(f.val==='No' && !f.reason.trim()){
+          state.modalChild = kids[i].code;
+          render();
+          showToast('សូមបំពេញមូលហេតុសម្រាប់ '+kids[i].name, true);
+          return;
+        }
+      }
+    }
+
+    state.busy = true; render();
+
+    // Build all records
+    var allRecords = kids.map(function(c){ return buildRecord(c, vol); });
+
+    // Save lastmap to localStorage
+    var lastMapObj = {};
+    allRecords.forEach(function(r){ lastMapObj[r.childCode] = r; });
+    try{ localStorage.setItem('lastmap_'+vol.code, JSON.stringify(lastMapObj)); }catch(e){}
+
+    // Format records for Google Sheet
+    var sheetRows = allRecords.map(function(r){
+      return {
+        submittedAt: r.submittedAt,
+        volunteerCode: r.volunteerCode,
+        volunteerName: r.volunteerName,
+        villageCode: r.villageCode,
+        villageName: r.villageName,
+        sessionDate: r.date,
+        sessionId: r.sessionId,
+        topics: Array.isArray(r.topics) ? r.topics.join(', ') : '',
+        childCode: r.childCode,
+        childName: r.childName,
+        attendance: r.attendance, attendanceReason: r.attendanceReason,
+        health: r.health, healthReason: r.healthReason,
+        education: r.education, educationReason: r.educationReason,
+        protection: r.protection, protectionReason: r.protectionReason,
+        participation: r.participation, participationReason: r.participationReason
+      };
+    });
+
+    postToSheet({ records: sheetRows }).then(function(){
+      // clear draft from localStorage
+      try{ localStorage.removeItem('draft_'+vol.code+'_'+state.sessionId); }catch(e){}
+      Object.keys(lastMapObj).forEach(function(code){ state.lastMap[code] = lastMapObj[code]; });
+      state.busy = false;
+      state.childStatus = {};
+      state.childSaved = {};
+      state.sessionTopics = [];
+      state.sessionId = null;
+      state.view = 'done';
+      render();
+    }).catch(function(){
+      state.busy = false;
+      showToast('មានបញ្ហាក្នុងការបញ្ចប់ការទស្សនកិច្ច សូមព្យាយាមម្តងទៀត', true);
+      render();
+    });
+  }
+
+  // ---------- navigation ----------
+  function goVillage(){ state.view='village'; state.volunteerCode=null; render(); }
+  function pickVillage(code){
+    state.villageCode = code; state.view='volunteer'; state.villageSearch=''; render();
+  }
+  function pickVolunteer(code){
+    state.volunteerCode = code; state.view='session'; state.sessionDate=todayISO(); state.sessionTopics=[];
+    savePref();
+    loadLastForVolunteer(code);
+  }
+  function continueToChildren(){
+    if(state.sessionTopics.length===0 || !state.sessionDate) return;
+    var kids = childrenByVolunteer[state.volunteerCode] || [];
+    kids.forEach(function(c){
+      if(!state.childStatus[c.code]) state.childStatus[c.code] = defaultStatus();
+    });
+    state.sessionId = String(Date.now());
+    state.childSaved = {};
+    state.view = 'children'; render();
+  }
+  function openAdmin(){ state.view='admin'; render(); loadAdminData(); }
+  function closeChildModal(code){
+    if(!code){ state.modalChild=null; render(); return; }
+    var st = state.childStatus[code];
+    if(st){
+      for(var j=0;j<CRITERIA.length;j++){
+        var f = st[CRITERIA[j].key];
+        if(f.val==='No' && !f.reason.trim()){
+          showToast('សូមបំពេញមូលហេតុមុននឹងបិទ', true);
+          return;
+        }
+      }
+    }
+    state.modalChild = null;
+    render();
+    autoSaveChild(code);
+  }
+  function startNewSession(){
+    state.view='village'; state.villageCode=null; state.volunteerCode=null;
+    state.childStatus={}; state.childSaved={}; state.sessionTopics=[]; state.sessionId=null; state.lastMap={};
+    render();
+  }
+
+  // ---------- render root ----------
+  var root = document.getElementById('rc-app');
+
+  function render(){
+    if(!state.authChecked){ root.innerHTML=''; return; }
+    if(!state.authed){ root.innerHTML = renderLogin(); bindLogin(); return; }
+
+    var html = '';
+    html += renderHeader();
+    if(state.view==='admin'){
+      html += '<div class="rc-shell">' + renderAdminView() + '</div>';
+    } else if(state.view==='done'){
+      html += '<div class="rc-shell">' + renderDoneView() + '</div>';
+    } else {
+      html += '<div class="rc-shell">';
+      html += renderTrail();
+      if(state.view==='village') html += renderVillageView();
+      else if(state.view==='volunteer') html += renderVolunteerView();
+      else if(state.view==='session') html += renderSessionView();
+      else if(state.view==='children') html += renderChildrenView();
+      html += '<div class="rc-footer-note">ទិន្នន័យត្រូវបានរក្សាទុកដោយស្វ័យប្រវត្តិ និងអាចមើលឃើញដោយក្រុមការងារទាំងអស់</div>';
+      html += '</div>';
+    }
+    if(state.modalChild) html += renderModal(state.modalChild);
+    if(state.toast) html += '<div class="rc-toast'+(state.toastError?' is-error':'')+'">'+escapeHtml(state.toast)+'</div>';
+    root.innerHTML = html;
+    bind();
+  }
+
+  // ---------- login ----------
+  function renderLogin(){
+    var html = '<div class="rc-login-wrap"><div class="rc-login-card">';
+    html += '<div class="rc-login-mark"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.6-9.5-9.1C0.8 8.4 2.4 5 5.8 5c2 0 3.4 1.1 4.2 2.3C10.8 6.1 12.2 5 14.2 5c3.4 0 5 3.4 3.3 6.9C19 16.4 12 21 12 21z" stroke="white" stroke-width="1.6" stroke-linejoin="round"/></svg></div>';
+    html += '<div class="rc-login-title">តាមដានកុមារទំនុកបំរុង</div>';
+    html += '<div class="rc-login-sub">សូមចូលប្រើដើម្បីចូលទៅផ្ទាំងគ្រប់គ្រង</div>';
+    if(state.loginError) html += '<div class="rc-login-error">'+escapeHtml(state.loginError)+'</div>';
+    html += '<div class="rc-field"><label>ឈ្មោះអ្នកប្រើប្រាស់</label><input type="text" id="rc-login-user" autocomplete="username" placeholder="ឈ្មោះអ្នកប្រើប្រាស់"/></div>';
+    html += '<div class="rc-field"><label>ពាក្យសម្ងាត់</label><input type="password" id="rc-login-pass" autocomplete="current-password" placeholder="ពាក្យសម្ងាត់"/></div>';
+    html += '<button type="button" class="rc-login-btn" id="rc-login-btn">ចូលប្រើប្រាស់</button>';
+    html += '<div class="rc-login-note">ប្រសិនបើអ្នកមិនទាន់មានគណនី សូមទាក់ទងអ្នកសម្របសម្រួលកម្មវិធី</div>';
+    html += '</div></div>';
+    return html;
+  }
+  function bindLogin(){
+    var btn = document.getElementById('rc-login-btn');
+    var userEl = document.getElementById('rc-login-user');
+    var passEl = document.getElementById('rc-login-pass');
+    if(!btn) return;
+    function attempt(){ tryLogin((userEl.value||'').trim(), passEl.value||''); }
+    btn.addEventListener('click', attempt);
+    [userEl,passEl].forEach(function(el){
+      el.addEventListener('keydown', function(e){ if(e.key==='Enter') attempt(); });
+    });
+    userEl.focus();
+  }
+
+  function renderHeader(){
+    return ''+
+    '<div class="rc-shell" style="padding-bottom:0;">'+
+      '<div class="rc-header">'+
+        '<div class="rc-brand">'+
+          '<div class="rc-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.6-9.5-9.1C0.8 8.4 2.4 5 5.8 5c2 0 3.4 1.1 4.2 2.3C10.8 6.1 12.2 5 14.2 5c3.4 0 5 3.4 3.3 6.9C19 16.4 12 21 12 21z" stroke="white" stroke-width="1.6" stroke-linejoin="round"/></svg></div>'+
+          '<div><div class="rc-title">តាមដានកុមារទំនុកបំរុង</div><div class="rc-subtitle">សហគមន៍ស្រុកមង្គលបុរី ២ &middot; បន្ទាយមានជ័យ</div></div>'+
+        '</div>'+
+        '<div class="rc-header-actions">'+
+          '<button class="rc-admin-btn" data-act="admin">'+
+            '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 3 5-8"/></svg>'+
+            (state.view==='admin' ? 'ត្រឡប់' : 'ទិន្នន័យសរុប')+
+          '</button>'+
+          '<button class="rc-logout-btn" data-act="logout">ចាកចេញ</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }
+
+  function renderTrail(){
+    var villName = state.villageCode ? (villageByCode[state.villageCode]||{}).name : null;
+    var volName = state.volunteerCode ? (volunteerByCode[state.volunteerCode]||{}).name : null;
+    var hasSession = state.sessionTopics.length>0;
+    var html = '<div class="rc-trail">';
+    html += trailPill(1, villName || 'ភូមិ', state.view==='village', !!villName, 'village');
+    html += '<span class="rc-trail-arrow">›</span>';
+    html += trailPill(2, volName || 'ឈ្មោះ', state.view==='volunteer', !!volName, villName ? 'volunteer' : null);
+    html += '<span class="rc-trail-arrow">›</span>';
+    html += trailPill(3, hasSession ? (fmtDate(state.sessionDate)) : 'កាលបរិច្ឆេទ', state.view==='session', hasSession, volName ? 'session' : null);
+    html += '<span class="rc-trail-arrow">›</span>';
+    html += trailPill(4, 'កុមារ', state.view==='children', false, null);
+    html += '</div>';
+    return html;
+  }
+  function trailPill(num, label, active, done, goTarget){
+    var cls = 'rc-trail-pill' + (active?' is-active':'') + (done && !active?' is-done':'');
+    var attr = goTarget ? ' data-act="go" data-target="'+goTarget+'"' : '';
+    return '<button type="button" class="'+cls+'"'+attr+'><span class="rc-trail-num">'+(done&&!active?'✓':num)+'</span><span class="lbl">'+escapeHtml(label)+'</span></button>';
+  }
+
+  function renderVillageView(){
+    var q = state.villageSearch.trim().toLowerCase();
+    var communeIds = DB.communes.map(function(c){return c.code;});
+    var html = '<div class="rc-card">';
+    html += '<div class="rc-section-title">ជ្រើសរើសភូមិ</div>';
+    html += '<div class="rc-section-sub">ស្វែងរក ឬជ្រើសរើសភូមិដែលលោកអ្នកនឹងចុះតាមដាន</div>';
+    html += '<input class="rc-search" type="text" placeholder="ស្វែងរកឈ្មោះភូមិ..." value="'+escapeHtml(state.villageSearch)+'" data-bind="villageSearch" />';
+    html += '<div class="rc-commune-tabs">';
+    html += '<button type="button" class="rc-chip'+(state.communeFilter==='all'?' is-on':'')+'" data-act="commune" data-c="all">ឃុំទាំងអស់</button>';
+    communeIds.forEach(function(cc){
+      html += '<button type="button" class="rc-chip'+(state.communeFilter===cc?' is-on':'')+'" data-act="commune" data-c="'+cc+'">'+escapeHtml(communeByCode[cc].name)+'</button>';
+    });
+    html += '</div>';
+
+    var list = DB.villages.filter(function(v){
+      if(state.communeFilter!=='all' && v.communeCode!==state.communeFilter) return false;
+      if(q && v.name.toLowerCase().indexOf(q)===-1) return false;
+      return true;
+    }).sort(function(a,b){ return a.name.localeCompare(b.name,'km'); });
+
+    html += '<div class="rc-list">';
+    if(state.dataLoading && DB.villages.length===0){
+      html += '<div class="rc-loading"><span class="rc-spin"></span> កំពុងទាញយកទិន្នន័យពី Google Sheet...</div>';
+    } else if(state.dataError && DB.villages.length===0){
+      html += '<div class="rc-empty">មិនអាចទាញយកទិន្នន័យបានទេ សូមពិនិត្យអ៊ីនធឺណិត ហើយព្យាយាមម្តងទៀត'+
+        '<div style="margin-top:10px;"><button type="button" class="rc-export-btn" data-act="refreshSheetData">ព្យាយាមម្តងទៀត</button></div></div>';
+    } else if(list.length===0){
+      html += '<div class="rc-empty">រកមិនឃើញភូមិដែលត្រូវនឹងការស្វែងរក</div>';
+    } else {
+      list.forEach(function(v){
+        var volCount = (volunteersByVillage[v.code]||[]).length;
+        html += '<button type="button" class="rc-pick-row" data-act="village" data-v="'+v.code+'">'+
+          '<div class="rc-pick-main"><div class="rc-pick-name">'+escapeHtml(v.name)+'</div>'+
+          '<div class="rc-pick-meta">ឃុំ'+escapeHtml(communeByCode[v.communeCode]?communeByCode[v.communeCode].name:'')+' &middot; លេខកូដ '+escapeHtml(v.code)+'</div></div>'+
+          '<div style="display:flex;align-items:center;gap:8px;">'+
+          '<span class="rc-count-badge">'+volCount+' អ្នកស្ម័គ្រចិត្ត</span>'+
+          '<span class="rc-pick-arrow">›</span></div>'+
+        '</button>';
+      });
+    }
+    html += '</div></div>';
+    return html;
+  }
+
+  function renderVolunteerView(){
+    var village = villageByCode[state.villageCode];
+    var html = '<div class="rc-card">';
+    if(!village){
+      html += '<div class="rc-empty">សូមជ្រើសរើសភូមិជាមុនសិន</div></div>';
+      return html;
+    }
+    html += '<div class="rc-section-title">ឈ្មោះអ្នកស្ម័គ្រចិត្ត — ភូមិ'+escapeHtml(village.name)+'</div>';
+    html += '<div class="rc-section-sub">ជ្រើសរើសឈ្មោះរបស់អ្នកដើម្បីចាប់ផ្តើមការតាមដាន</div>';
+    var vols = (volunteersByVillage[village.code]||[]).slice().sort(function(a,b){return a.name.localeCompare(b.name,'km');});
+    html += '<div class="rc-list">';
+    if(vols.length===0){
+      html += '<div class="rc-empty">មិនទាន់មានអ្នកស្ម័គ្រចិត្តចុះឈ្មោះសម្រាប់ភូមិនេះទេ</div>';
+    } else {
+      vols.forEach(function(v){
+        var n = (childrenByVolunteer[v.code]||[]).length;
+        html += '<button type="button" class="rc-pick-row" data-act="volunteer" data-vol="'+escapeHtml(v.code)+'">'+
+          '<div class="rc-pick-main"><div class="rc-pick-name">'+escapeHtml(v.name)+'</div>'+
+          '<div class="rc-pick-meta">លេខកូដ '+escapeHtml(v.code.split('-')[0])+'</div></div>'+
+          '<div style="display:flex;align-items:center;gap:8px;"><span class="rc-count-badge">'+n+' កុមារ</span><span class="rc-pick-arrow">›</span></div>'+
+        '</button>';
+      });
+    }
+    html += '</div></div>';
+    return html;
+  }
+
+  function renderSessionView(){
+    var vol = volunteerByCode[state.volunteerCode];
+    var html = '<div class="rc-card">';
+    if(!vol){ html += '<div class="rc-empty">សូមជ្រើសរើសឈ្មោះអ្នកស្ម័គ្រចិត្តជាមុនសិន</div></div>'; return html; }
+    html += '<div class="rc-section-title">សួស្តី '+escapeHtml(vol.name)+'</div>';
+    html += '<div class="rc-section-sub">បំពេញកាលបរិច្ឆេទ និងប្រធានបទនៃការតាមដានលើកនេះ មុននឹងបន្តទៅកុមារនីមួយៗ</div>';
+
+    html += '<div class="rc-field"><label>ថ្ងៃទីតាមដាន</label><input type="date" id="rc-session-date" value="'+escapeHtml(state.sessionDate)+'" max="'+todayISO()+'"/></div>';
+
+    html += '<div class="rc-field"><label>ប្រធានបទ​ (អាចជ្រើសរើសច្រើន)</label><div class="rc-topic-grid" id="rc-session-topics">';
+    DB.topics.forEach(function(t, i){
+      var on = state.sessionTopics.indexOf(t) !== -1;
+      html += '<div class="rc-topic-opt'+(on?' is-on':'')+'" data-topic="'+i+'"><span class="rc-topic-check">'+(on?'✓':'')+'</span>'+escapeHtml(t)+'</div>';
+    });
+    html += '</div></div>';
+
+    var canContinue = state.sessionTopics.length>0 && !!state.sessionDate;
+    html += '<button type="button" class="rc-continue-btn" id="rc-session-continue"'+(canContinue?'':' disabled')+'>បន្តទៅកុមារ ('+( (childrenByVolunteer[vol.code]||[]).length )+'នាក់)</button>';
+    html += '</div>';
+    return html;
+  }
+
+  function criterionSummary(code){
+    var st = state.childStatus[code];
+    if(!st) return {issues:0, labels:[]};
+    var issues=0, labels=[];
+    CRITERIA.forEach(function(c){
+      if(st[c.key].val==='No'){ issues++; labels.push(c.label); }
+    });
+    return {issues:issues, labels:labels};
+  }
+
+  function renderChildrenView(){
+    var vol = volunteerByCode[state.volunteerCode];
+    var html = '<div class="rc-card">';
+    if(!vol){ html += '<div class="rc-empty">សូមជ្រើសរើសឈ្មោះអ្នកស្ម័គ្រចិត្តជាមុនសិន</div></div>'; return html; }
+    var kids = (childrenByVolunteer[vol.code]||[]).slice();
+
+    html += '<div class="rc-section-title">កុមារទទួលបន្ទុក</div>';
+    html += '<div class="rc-session-summary">'+
+      '<span>📅 '+fmtDate(state.sessionDate)+'</span>'+
+      '<span>📋 '+escapeHtml(state.sessionTopics.join(', '))+'</span>'+
+    '</div>';
+    html += '<div class="rc-section-sub">កុមារទាំងអស់ត្រូវបានកំណត់ជា "មាន" លំនាំដើមលើគ្រប់ចំណុចទាំង ៥។ ចុចលើកុមារណាដែលមានបញ្ហា ដើម្បីប្តូរទៅ "គ្មាន" ហើយបំពេញមូលហេតុ &mdash; រក្សាទុកដោយស្វ័យប្រវត្តិពេលអ្នកបិទកាតរបស់កុមារនីមួយៗ។</div>';
+
+    if(state.busy){
+      html += '<div class="rc-loading"><span class="rc-spin"></span> កំពុងបញ្ចប់ការទស្សនកិច្ច...</div>';
+    }
+
+    html += '<div class="rc-sort-row"><span style="font-size:11.5px;color:var(--ink-soft);">តម្រៀបតាម</span><select data-bind="sortMode">'+
+      '<option value="issues"'+(state.sortMode==='issues'?' selected':'')+'>មានបញ្ហាមុន</option>'+
+      '<option value="overdue"'+(state.sortMode==='overdue'?' selected':'')+'>ត្រូវការតាមដានមុន</option>'+
+      '<option value="name"'+(state.sortMode==='name'?' selected':'')+'>ឈ្មោះកុមារ</option>'+
+    '</select></div>';
+
+    if(state.sortMode==='issues') kids.sort(function(a,b){ return criterionSummary(b.code).issues - criterionSummary(a.code).issues; });
+    else if(state.sortMode==='overdue') kids.sort(function(a,b){ return (b.overdue||0)-(a.overdue||0); });
+    else kids.sort(function(a,b){ return a.name.localeCompare(b.name,'km'); });
+
+    if(kids.length===0){
+      html += '<div class="rc-empty">មិនទាន់មានកុមារដែលចាត់តាំងឱ្យអ្នកស្ម័គ្រចិត្តនេះទេ</div>';
+    } else {
+      var anyIssues = 0, savedCount = 0;
+      kids.forEach(function(c){
+        var sum = criterionSummary(c.code);
+        if(sum.issues>0) anyIssues++;
+        if(state.childSaved[c.code]) savedCount++;
+        html += '<button type="button" class="rc-child-row'+(sum.issues>0?' has-issue':'')+'" data-act="openChild" data-c="'+escapeHtml(c.code)+'">';
+        if(c.photo){
+          html += '<img class="rc-avatar" src="'+escapeHtml(c.photo)+'" alt="" onerror="this.style.display=\'none\'"/>';
+        } else {
+          html += '<div class="rc-avatar">'+escapeHtml(initials(c.name))+'</div>';
+        }
+        html += '<div class="rc-child-info">';
+        html += '<div class="rc-child-name">'+escapeHtml(c.name)+
+          (sum.issues>0 ? '<span class="rc-tag bad">'+sum.issues+' បញ្ហា</span>' : '<span class="rc-tag ok">គ្រប់ចំណុចល្អ</span>')+
+        '</div>';
+        html += '<div class="rc-child-meta">'+escapeHtml(c.gender||'')+' &middot; អាយុ '+escapeHtml(c.age||'-')+'ឆ្នាំ'+(c.overdue!=null?(' &middot; '+c.overdue+'ថ្ងៃកន្លងមក'):'')+'</div>';
+        if(sum.issues>0) html += '<div class="rc-last" style="color:var(--clay);">'+escapeHtml(sum.labels.join(', '))+'</div>';
+        if(state.savingChild===c.code) html += '<div class="rc-last" style="color:var(--ink-soft);">កំពុងរក្សាទុក...</div>';
+        else if(state.childSaved[c.code]) html += '<div class="rc-last" style="color:var(--ok-fg);">✓ បានរក្សាទុក</div>';
+        html += '</div>';
+        html += '<span class="rc-pick-arrow2">›</span>';
+        html += '</button>';
+      });
+
+      html += '<div class="rc-sticky-submit">'+
+        '<div class="rc-sticky-text"><b>'+savedCount+'</b>/'+kids.length+' រក្សាទុករួច &middot; <b>'+anyIssues+'</b> មានបញ្ហា</div>'+
+        '<button type="button" class="rc-submit-btn" id="rc-submit-session"'+(state.busy?' disabled':'')+'>'+(state.busy?'កំពុងបញ្ចប់...':'បញ្ចប់ការទស្សនកិច្ច')+'</button>'+
+      '</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderModal(childCode){
+    var c = DB.children.filter(function(x){return x.code===childCode;})[0];
+    if(!c) return '';
+    var st = state.childStatus[c.code] || defaultStatus();
+    var html = '<div class="rc-overlay" data-act="overlay">';
+    html += '<div class="rc-modal" data-stop="1">';
+    html += '<div class="rc-modal-head">';
+    if(c.photo) html += '<img class="rc-modal-avatar" style="object-fit:cover;" src="'+escapeHtml(c.photo)+'" onerror="this.style.display=\'none\'"/>';
+    else html += '<div class="rc-avatar rc-modal-avatar">'+escapeHtml(initials(c.name))+'</div>';
+    html += '<div><div class="rc-modal-h">'+escapeHtml(c.name)+'</div><div class="rc-modal-sub">'+escapeHtml(c.gender||'')+' &middot; អាយុ '+escapeHtml(c.age||'-')+'ឆ្នាំ &middot; '+escapeHtml((villageByCode[c.villageCode]||{}).name||'')+'</div></div>';
+    html += '</div>';
+
+    CRITERIA.forEach(function(crit){
+      var f = st[crit.key];
+      var isNo = f.val==='No';
+      html += '<div class="rc-criterion'+(isNo?' is-no':'')+'">';
+      html += '<div class="rc-criterion-top"><span class="rc-criterion-label">'+escapeHtml(crit.label)+'</span>'+
+        '<div class="rc-toggle-pair">'+
+          '<button type="button" class="rc-toggle-btn yes'+(!isNo?' is-on':'')+'" data-toggle="'+crit.key+'" data-val="Yes">មាន</button>'+
+          '<button type="button" class="rc-toggle-btn no'+(isNo?' is-on':'')+'" data-toggle="'+crit.key+'" data-val="No">គ្មាន</button>'+
+        '</div></div>';
+      if(isNo){
+        html += '<div class="rc-criterion-reason"><label>មូលហេតុ</label><textarea data-reason="'+crit.key+'" placeholder="សរសេរមូលហេតុ...">'+escapeHtml(f.reason)+'</textarea></div>';
+      }
+      html += '</div>';
+    });
+
+    html += '<div class="rc-modal-actions">';
+    html += '<button type="button" class="rc-btn-primary" data-act="closeModal" data-c="'+escapeHtml(c.code)+'">បានរួចរាល់ &mdash; រក្សាទុក</button>';
+    html += '</div>';
+    html += '</div></div>';
+    return html;
+  }
+
+  function renderDoneView(){
+    var html = '<div class="rc-card" style="text-align:center;padding:34px 22px;">';
+    html += '<div style="font-size:40px;margin-bottom:10px;">✅</div>';
+    html += '<div class="rc-section-title" style="font-size:16px;">ការតាមដានត្រូវបានរក្សាទុករួចរាល់</div>';
+    html += '<div class="rc-section-sub">សូមអរគុណចំពោះការខិតខំប្រឹងប្រែងរបស់អ្នក!</div>';
+    html += '<button type="button" class="rc-continue-btn" data-act="newSession">ចាប់ផ្តើមការតាមដានថ្មី</button>';
+    html += '</div>';
+    return html;
+  }
+
+  // ---------- admin / export ----------
+  // ---------- admin / export (reads from localStorage drafts + lastmaps) ----------
+  var adminCache = null;
+  function loadAdminData(){
+    state.busy = true; render();
+    try{
+      var items = [];
+      for(var i=0; i<localStorage.length; i++){
+        var k = localStorage.key(i);
+        if(!k) continue;
+        if(k.indexOf('lastmap_') === 0){
+          try{
+            var map = JSON.parse(localStorage.getItem(k)||'{}');
+            Object.values(map).forEach(function(r){ if(r && r.childCode) items.push(r); });
+          }catch(e){}
+        }
+      }
+      adminCache = items.sort(function(a,b){ return (b.submittedAt||'').localeCompare(a.submittedAt||''); });
+    }catch(e){ adminCache = []; }
+    state.busy = false; render();
+  }
+
+
+  function renderAdminView(){
+    var html = '<div class="rc-card">';
+    html += '<div class="rc-admin-bar"><div><div class="rc-section-title" style="margin-bottom:2px;">ទិន្នន័យតាមដានសរុប</div><div class="rc-section-sub" style="margin-bottom:0;">កំណត់ត្រាទាំងអស់ពីអ្នកស្ម័គ្រចិត្តគ្រប់ភូមិ</div></div>'+
+      '<div style="display:flex;gap:8px;">'+
+      '<button type="button" class="rc-export-btn" data-act="refreshSheetData"'+(state.dataLoading?' disabled':'')+'>'+(state.dataLoading?'កំពុងទាញយក...':'ទាញយកទិន្នន័យឡើងវិញ')+'</button>'+
+      '<button type="button" class="rc-export-btn" data-act="exportCsv">ទាញយក CSV</button>'+
+      '</div></div>';
+
+    if(state.busy){
+      html += '<div class="rc-loading"><span class="rc-spin"></span> កំពុងផ្ទុកទិន្នន័យ...</div>';
+      html += '</div>';
+      return html;
+    }
+
+    var items = adminCache || [];
+    var uniqueChildren = {}; items.forEach(function(i){ uniqueChildren[i.childCode]=1; });
+    var issueCount = 0;
+    items.forEach(function(i){
+      CRITERIA.forEach(function(c){ if(i[c.key]==='No') issueCount++; });
+    });
+    html += '<div class="rc-stat-row">'+
+      '<div class="rc-stat"><b>'+items.length+'</b><span>កំណត់ត្រាសរុប</span></div>'+
+      '<div class="rc-stat"><b>'+Object.keys(uniqueChildren).length+'</b><span>កុមារត្រូវបានតាមដាន</span></div>'+
+      '<div class="rc-stat"><b>'+issueCount+'</b><span>ចំណុចមានបញ្ហា</span></div>'+
+      '<div class="rc-stat"><b>'+DB.children.length+'</b><span>កុមារសរុបក្នុងបញ្ជី</span></div>'+
+    '</div>';
+
+    if(items.length===0){
+      html += '<div class="rc-empty">មិនទាន់មានកំណត់ត្រាតាមដានទេ</div></div>';
+      return html;
+    }
+
+    html += '<div class="rc-table-wrap"><table class="rc-table"><thead><tr>'+
+      '<th>ថ្ងៃទីតាមដាន</th><th>ភូមិ</th><th>អ្នកស្ម័គ្រចិត្ត</th><th>កុមារ</th><th>ប្រធានបទ</th>'+
+      '<th>វត្តមាន</th><th>សុខភាព</th><th>ការសិក្សា</th><th>ការការពារ</th><th>ការចូលរួម</th><th>មូលហេតុ (បញ្ហា)</th>'+
+    '</tr></thead><tbody>';
+    items.forEach(function(i){
+      var reasons = [];
+      CRITERIA.forEach(function(c){ if(i[c.key]==='No' && i[c.key+'Reason']) reasons.push(c.label+': '+i[c.key+'Reason']); });
+      html += '<tr><td>'+fmtDate(i.date)+'</td><td>'+escapeHtml(i.villageName)+'</td><td>'+escapeHtml(i.volunteerName)+'</td>'+
+        '<td>'+escapeHtml(i.childName)+'</td><td>'+escapeHtml((i.topics||[]).join('; '))+'</td>'+
+        '<td>'+escapeHtml(i.attendance)+'</td><td>'+escapeHtml(i.health)+'</td><td>'+escapeHtml(i.education)+'</td>'+
+        '<td>'+escapeHtml(i.protection)+'</td><td>'+escapeHtml(i.participation)+'</td>'+
+        '<td>'+escapeHtml(reasons.join(' | '))+'</td></tr>';
+    });
+    html += '</tbody></table></div></div>';
+    return html;
+  }
+
+  function exportCsv(){
+    var items = adminCache || [];
+    var rows = [['Date','Village','VillageCode','Volunteer','VolunteerCode','ChildCode','ChildName','Topics',
+      'Attendance','AttendanceReason','Health','HealthReason','Education','EducationReason',
+      'Protection','ProtectionReason','Participation','ParticipationReason','SubmittedAt']];
+    items.forEach(function(i){
+      rows.push([i.date,i.villageName,i.villageCode,i.volunteerName,i.volunteerCode,i.childCode,i.childName,(i.topics||[]).join('; '),
+        i.attendance,(i.attendanceReason||'').replace(/\n/g,' '),
+        i.health,(i.healthReason||'').replace(/\n/g,' '),
+        i.education,(i.educationReason||'').replace(/\n/g,' '),
+        i.protection,(i.protectionReason||'').replace(/\n/g,' '),
+        i.participation,(i.participationReason||'').replace(/\n/g,' '),
+        i.submittedAt]);
+    });
+    var csv = rows.map(function(r){
+      return r.map(function(v){
+        var s = String(v==null?'':v);
+        if(/[",\n]/.test(s)) s = '"'+s.replace(/"/g,'""')+'"';
+        return s;
+      }).join(',');
+    }).join('\n');
+    var blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'rc_monitoring_export.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // ---------- events ----------
+  function bind(){
+    root.querySelectorAll('[data-bind="villageSearch"]').forEach(function(el){
+      el.addEventListener('input', function(){ state.villageSearch = el.value; render(); preserveFocus('villageSearch'); });
+    });
+    root.querySelectorAll('[data-bind="sortMode"]').forEach(function(el){
+      el.addEventListener('change', function(){ state.sortMode = el.value; render(); });
+    });
+    root.querySelectorAll('[data-act="commune"]').forEach(function(el){
+      el.addEventListener('click', function(){ state.communeFilter = el.getAttribute('data-c'); render(); });
+    });
+    root.querySelectorAll('[data-act="village"]').forEach(function(el){
+      el.addEventListener('click', function(){ pickVillage(el.getAttribute('data-v')); });
+    });
+    root.querySelectorAll('[data-act="volunteer"]').forEach(function(el){
+      el.addEventListener('click', function(){ pickVolunteer(el.getAttribute('data-vol')); });
+    });
+    root.querySelectorAll('[data-act="go"]').forEach(function(el){
+      el.addEventListener('click', function(){
+        var t = el.getAttribute('data-target');
+        if(t==='village') goVillage();
+        else if(t==='volunteer'){ state.view='volunteer'; render(); }
+        else if(t==='session'){ state.view='session'; render(); }
+      });
+    });
+    root.querySelectorAll('[data-act="admin"]').forEach(function(el){
+      el.addEventListener('click', function(){
+        if(state.view==='admin'){ state.view = state.volunteerCode ? 'children' : (state.villageCode?'volunteer':'village'); render(); }
+        else openAdmin();
+      });
+    });
+    root.querySelectorAll('[data-act="logout"]').forEach(function(el){
+      el.addEventListener('click', logout);
+    });
+    root.querySelectorAll('[data-topic]').forEach(function(el){
+      el.addEventListener('click', function(){
+        var idx = parseInt(el.getAttribute('data-topic'),10);
+        var t = DB.topics[idx];
+        var pos = state.sessionTopics.indexOf(t);
+        if(pos===-1) state.sessionTopics.push(t); else state.sessionTopics.splice(pos,1);
+        render();
+      });
+    });
+    var sessDateEl = document.getElementById('rc-session-date');
+    if(sessDateEl){
+      sessDateEl.addEventListener('change', function(){ state.sessionDate = sessDateEl.value; render(); });
+    }
+    var sessContinueEl = document.getElementById('rc-session-continue');
+    if(sessContinueEl){
+      sessContinueEl.addEventListener('click', continueToChildren);
+    }
+    root.querySelectorAll('[data-act="openChild"]').forEach(function(el){
+      el.addEventListener('click', function(){ state.modalChild = el.getAttribute('data-c'); render(); });
+    });
+    root.querySelectorAll('[data-act="closeModal"]').forEach(function(el){
+      el.addEventListener('click', function(){ closeChildModal(el.getAttribute('data-c')); });
+    });
+    root.querySelectorAll('[data-act="overlay"]').forEach(function(el){
+      el.addEventListener('click', function(e){ if(e.target===el){ closeChildModal(state.modalChild); } });
+    });
+    root.querySelectorAll('[data-stop]').forEach(function(el){
+      el.addEventListener('click', function(e){ e.stopPropagation(); });
+    });
+    root.querySelectorAll('[data-toggle]').forEach(function(el){
+      el.addEventListener('click', function(){
+        var key = el.getAttribute('data-toggle');
+        var val = el.getAttribute('data-val');
+        var code = state.modalChild;
+        if(!state.childStatus[code]) state.childStatus[code] = defaultStatus();
+        state.childStatus[code][key].val = val;
+        if(val==='Yes') state.childStatus[code][key].reason = '';
+        render();
+      });
+    });
+    root.querySelectorAll('[data-reason]').forEach(function(el){
+      el.addEventListener('input', function(){
+        var key = el.getAttribute('data-reason');
+        var code = state.modalChild;
+        if(!state.childStatus[code]) state.childStatus[code] = defaultStatus();
+        state.childStatus[code][key].reason = el.value;
+      });
+    });
+    var submitBtn = document.getElementById('rc-submit-session');
+    if(submitBtn){ submitBtn.addEventListener('click', finishVisit); }
+    root.querySelectorAll('[data-act="newSession"]').forEach(function(el){
+      el.addEventListener('click', startNewSession);
+    });
+    root.querySelectorAll('[data-act="exportCsv"]').forEach(function(el){
+      el.addEventListener('click', exportCsv);
+    });
+    root.querySelectorAll('[data-act="refreshSheetData"]').forEach(function(el){
+      el.addEventListener('click', function(){ loadDataFromSheet(); });
+    });
+  }
+  function preserveFocus(bindKey){
+    var fresh = root.querySelector('[data-bind="'+bindKey+'"]');
+    if(fresh){ fresh.focus(); var v=fresh.value; fresh.value=''; fresh.value=v; }
+  }
+
+  // ---------- font load ----------
+  (function loadFont(){
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;500;600;700;800&family=Inter:wght@400;600;700&display=swap';
+    document.head.appendChild(link);
+  })();
+
+  checkAuth();
+})();
+</script>
+</body>
+</html>
